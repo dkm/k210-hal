@@ -15,6 +15,7 @@ pub mod clock;
 pub mod dmac;
 pub mod fft;
 pub mod fpioa;
+pub mod i2c;
 pub mod gpio;
 pub mod gpiohs;
 pub mod plic;

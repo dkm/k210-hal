@@ -87,7 +87,7 @@ pub mod io_pins {
     use core::marker::PhantomData;
     use super::{Function, IoPin, Mode, FUNCTION_DEFAULTS};
     use crate::pac::FPIOA;
-                    
+
 $(
     /// Programmable I/O pin
     pub struct $IoX<FUNC> {
@@ -148,8 +148,8 @@ def_io_pin! {
     Io27: (27, io27, GPIOHS11); 
     Io28: (28, io28, GPIOHS12); 
     Io29: (29, io29, GPIOHS13); 
-    Io30: (30, io30, GPIOHS14); 
-    Io31: (31, io31, GPIOHS15); 
+    Io30: (30, io30, I2C1_SCLK); 
+    Io31: (31, io31, I2C1_SDA); 
     Io32: (32, io32, GPIOHS16); 
     Io33: (33, io33, GPIOHS17); 
     Io34: (34, io34, GPIOHS18); 
