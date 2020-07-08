@@ -3,7 +3,7 @@
 use crate::pac::I2C1;
 use core::marker::PhantomData;
 use crate::bit_utils::{u32_set_bit, u32_toggle_bit, u32_bit_is_set, u32_bit_is_clear};
-use embedded_hal::digital::v2::{InputPin, OutputPin};
+
 use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
 use crate::{
     fpioa::{
@@ -130,8 +130,11 @@ macro_rules! hal {
 
             impl<PINS> Write for I2c<$I2CX, PINS> {
                 type Error = Error;
+                // fn try_write(&mut self, word: Word) -> Result<(), Self::Error> {
+                //     Ok(())
+                // }
 
-                fn write(&mut self, addr: u8, bytes: &[u8]) -> Result<(), Error> {
+                fn try_write(&mut self, addr: u8, bytes: &[u8]) -> Result<(), Error> {
                     // Write Slave address and clear Receive bit
                     // self.i2c.msa.write(|w| unsafe {
                     //     w.sa().bits(addr)
@@ -183,7 +186,7 @@ macro_rules! hal {
             impl<PINS> Read for I2c<$I2CX, PINS> {
                 type Error = Error;
 
-                fn read(
+                fn try_read(
                     &mut self,
                     addr: u8,
                     buffer: &mut [u8],
@@ -242,7 +245,7 @@ macro_rules! hal {
             impl<PINS> WriteRead for I2c<$I2CX, PINS> {
                 type Error = Error;
 
-                fn write_read(
+                fn try_write_read(
                     &mut self,
                     addr: u8,
                     bytes: &[u8],
