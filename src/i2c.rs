@@ -1,5 +1,7 @@
 //! Inter-Integrated Circuit (I2C) bus
+use crate::pac::i2c0::con::{ADDR_SLAVE_WIDTH_A, SPEED_A};
 
+use crate::pac::I2C0;
 use crate::pac::I2C1;
 use core::marker::PhantomData;
 use crate::bit_utils::{u32_set_bit, u32_toggle_bit, u32_bit_is_set, u32_bit_is_clear};
@@ -105,6 +107,28 @@ macro_rules! hal {
                     SCL: SclPin<$I2CX>,
                     SDA: SdaPin<$I2CX>,
                 {
+//                    use i2c0::con::{ADDR_SLAVE_WIDTH_A,SPEED_A};
+                    let v_width = ADDR_SLAVE_WIDTH_A::B7;
+                    let v_period_clk_cnt = 0;
+
+                    i2c.enable.write(|w| w.enable().clear_bit());
+                    i2c.con.write(|w| w.master_mode().bit(true)
+                                  .slave_disable().bit(true)
+                                  .restart_en().bit(true)
+                                  .addr_slave_width().variant(v_width)
+                                  .speed().variant(SPEED_A::FAST));
+
+                    unsafe {
+                        i2c.ss_scl_hcnt.write(|w| w.count().bits(v_period_clk_cnt));
+                        i2c.ss_scl_lcnt.write(|w| w.count().bits(v_period_clk_cnt));
+                    }
+//                    i2c.tar.write(|w| w.address().bits(slave_address));
+                    i2c.intr_mask.write(|w| w.rx_under().clear_bit().rx_over().clear_bit());
+                    i2c.intr_mask.write(|w| w.bits(0));
+                    i2c.dma_cr.write(|w| w.bits(0x3));
+                    i2c.dma_rdlr.write(|w| w.bits(0));
+                    i2c.dma_tdlr.write(|w| w.bits(4));
+                    i2c.enable.write(|w| w.enable().set_bit());
                     // sysctl::control_power(
                     //     pc, sysctl::Domain::$powerDomain,
                     //     sysctl::RunMode::Run, sysctl::PowerState::On);
