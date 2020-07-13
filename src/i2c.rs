@@ -1,21 +1,22 @@
 //! Inter-Integrated Circuit (I2C) bus
 use crate::pac::i2c0::con::{ADDR_SLAVE_WIDTH_A, SPEED_A};
 
+use crate::bit_utils::{u32_bit_is_clear, u32_bit_is_set, u32_set_bit, u32_toggle_bit};
+use crate::clock::Clocks;
 use crate::pac::I2C0;
 use crate::pac::I2C1;
-use crate::clock::Clocks;
-use core::marker::PhantomData;
+use crate::pac::I2C2;
 use core::cmp;
-use crate::bit_utils::{u32_set_bit, u32_toggle_bit, u32_bit_is_set, u32_bit_is_clear};
+use core::marker::PhantomData;
 
-use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
 use crate::{
     fpioa::{
+        functions::{I2C0_SCLK, I2C0_SDA, I2C1_SCLK, I2C1_SDA, I2C2_SCLK, I2C2_SDA},
         io_pins::{Io30, Io31},
-        functions::{I2C1_SCLK, I2C1_SDA},
     },
     time::Hertz,
 };
+use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
 
 // use crate::{
 //     gpio::{
@@ -55,8 +56,14 @@ pub unsafe trait SclPin<I2C> {}
 /// SDA pin -- DO NOT IMPLEMENT THIS TRAIT
 pub unsafe trait SdaPin<I2C> {}
 
+unsafe impl SclPin<I2C0> for Io30<I2C0_SCLK> {}
+unsafe impl SdaPin<I2C0> for Io31<I2C0_SDA> {}
+
 unsafe impl SclPin<I2C1> for Io30<I2C1_SCLK> {}
 unsafe impl SdaPin<I2C1> for Io31<I2C1_SDA> {}
+
+unsafe impl SclPin<I2C2> for Io30<I2C2_SCLK> {}
+unsafe impl SdaPin<I2C2> for Io31<I2C2_SDA> {}
 
 /// I2C peripheral operating in master mode
 pub struct I2c<I2C, PINS> {
@@ -93,22 +100,27 @@ pub struct I2c<I2C, PINS> {
 //     };
 // }
 
+/// Extension trait that constrains I2C peripheral
+pub trait I2cExt<I2CX, SCL, SDA>: Sized {
+    /// Configures an I2C peripheral
+    fn configure(
+        self,
+        pins: (SCL, SDA),
+        addr_width: u8,
+        clocks: &Clocks,
+    ) -> Result<I2c<I2CX, (SCL, SDA)>, Error>
+    where
+        SCL: SclPin<I2CX>,
+        SDA: SdaPin<I2CX>;
+}
+
 macro_rules! hal {
     ($($I2CX:ident: ($powerDomain:ident, $i2cX:ident),)+) => {
         $(
-            /// Extension trait that constrains I2C peripheral
-            pub trait I2cExt<SCL, SDA>: Sized {
-                /// Configures an I2C peripheral
+            impl<SCL, SDA> I2cExt<$I2CX, SCL, SDA> for $I2CX {
                 fn configure(self, pins: (SCL, SDA), addr_width : u8, clocks: &Clocks
-                ) -> Result<I2c<I2C1, (SCL, SDA)>, Error> where
-                    SCL:  SclPin<$I2CX>,
-                    SDA: SdaPin<$I2CX>;
-            }
-
-            impl<SCL, SDA> I2cExt<SCL, SDA> for $I2CX {
-                fn configure(self, pins: (SCL, SDA), addr_width : u8, clocks: &Clocks
-                ) -> Result<I2c<I2C1, (SCL, SDA)>, Error> where
-                    SCL:  SclPin<$I2CX>,
+                ) -> Result<I2c<$I2CX, (SCL, SDA)>, Error> where
+                    SCL: SclPin<$I2CX>,
                     SDA: SdaPin<$I2CX>,
                 {
                     let i2c = self;
@@ -117,7 +129,7 @@ macro_rules! hal {
                         7 => ADDR_SLAVE_WIDTH_A::B7,
                         10 => ADDR_SLAVE_WIDTH_A::B10,
                         _ => return Err(Error::Bus)
-                    }; //ADDR_SLAVE_WIDTH_A::B7;
+                    };
                     let v_period_clk_cnt = 0;
 
                     i2c.enable.write(|w| w.enable().clear_bit());
@@ -158,97 +170,97 @@ macro_rules! hal {
                 }
             }
 
-            impl<SCL, SDA> I2c<$I2CX, (SCL, SDA)> {
-//                 /// Configures the I2C peripheral to work in master mode
-//                 pub fn $i2cX<F>(
-//                     i2c: $I2CX,
-//                     pins: (SCL, SDA),
-//                     freq: F,
-// //                    clocks: &Clocks,
-// //                    pc: &sysctl::PowerControl,
-//                 ) -> Self where
-//                     F: Into<Hertz>,
-//                     SCL: SclPin<$I2CX>,
-//                     SDA: SdaPin<$I2CX>,
-//                 {
-//                     let v_width = ADDR_SLAVE_WIDTH_A::B7;
-//                     let v_period_clk_cnt = 0;
+//            impl<SCL, SDA> I2c<$I2CX, (SCL, SDA)> // {
+// //                 /// Configures the I2C peripheral to work in master mode
+// //                 pub fn $i2cX<F>(
+// //                     i2c: $I2CX,
+// //                     pins: (SCL, SDA),
+// //                     freq: F,
+// // //                    clocks: &Clocks,
+// // //                    pc: &sysctl::PowerControl,
+// //                 ) -> Self where
+// //                     F: Into<Hertz>,
+// //                     SCL: SclPin<$I2CX>,
+// //                     SDA: SdaPin<$I2CX>,
+// //                 {
+// //                     let v_width = ADDR_SLAVE_WIDTH_A::B7;
+// //                     let v_period_clk_cnt = 0;
 
-//                     i2c.enable.write(|w| w.enable().clear_bit());
-//                     i2c.con.write(|w| w.master_mode().bit(true)
-//                                   .slave_disable().bit(true)
-//                                   .restart_en().bit(true)
-//                                   .addr_slave_width().variant(v_width)
-//                                   .speed().variant(SPEED_A::FAST));
+// //                     i2c.enable.write(|w| w.enable().clear_bit());
+// //                     i2c.con.write(|w| w.master_mode().bit(true)
+// //                                   .slave_disable().bit(true)
+// //                                   .restart_en().bit(true)
+// //                                   .addr_slave_width().variant(v_width)
+// //                                   .speed().variant(SPEED_A::FAST));
 
-//                     unsafe {
-//                         i2c.ss_scl_hcnt.write(|w| w.count().bits(v_period_clk_cnt));
-//                         i2c.ss_scl_lcnt.write(|w| w.count().bits(v_period_clk_cnt));
-//                     }
-// //                    i2c.tar.write(|w| w.address().bits(slave_address));
-//                     i2c.intr_mask.write(|w| w.rx_under().clear_bit().rx_over().clear_bit()
-//                                         .rx_full().clear_bit()
-//                                         .tx_over().clear_bit()
-//                                         .tx_empty().clear_bit()
-//                                         .rd_req().clear_bit()
-//                                         .tx_abrt().clear_bit()
-//                                         .rx_done().clear_bit()
-//                                         .activity().clear_bit()
-//                                         .stop_det().clear_bit()
-//                                         .start_det().clear_bit()
-//                                         .gen_call().clear_bit());
-// //                    i2c.intr_mask.write(|w| w.bits(0));
-//                     i2c.dma_cr.write(|w| w.rdmae().set_bit()
-//                                      .tdmae().set_bit());
+// //                     unsafe {
+// //                         i2c.ss_scl_hcnt.write(|w| w.count().bits(v_period_clk_cnt));
+// //                         i2c.ss_scl_lcnt.write(|w| w.count().bits(v_period_clk_cnt));
+// //                     }
+// // //                    i2c.tar.write(|w| w.address().bits(slave_address));
+// //                     i2c.intr_mask.write(|w| w.rx_under().clear_bit().rx_over().clear_bit()
+// //                                         .rx_full().clear_bit()
+// //                                         .tx_over().clear_bit()
+// //                                         .tx_empty().clear_bit()
+// //                                         .rd_req().clear_bit()
+// //                                         .tx_abrt().clear_bit()
+// //                                         .rx_done().clear_bit()
+// //                                         .activity().clear_bit()
+// //                                         .stop_det().clear_bit()
+// //                                         .start_det().clear_bit()
+// //                                         .gen_call().clear_bit());
+// // //                    i2c.intr_mask.write(|w| w.bits(0));
+// //                     i2c.dma_cr.write(|w| w.rdmae().set_bit()
+// //                                      .tdmae().set_bit());
 
-//                     unsafe {
-//                         i2c.dma_rdlr.write(|w| w.value().bits(0));
-//                         i2c.dma_tdlr.write(|w| w.value().bits(4));
-//                     }
+// //                     unsafe {
+// //                         i2c.dma_rdlr.write(|w| w.value().bits(0));
+// //                         i2c.dma_tdlr.write(|w| w.value().bits(4));
+// //                     }
 
-//                     i2c.enable.write(|w| w.enable().set_bit());
+// //                     i2c.enable.write(|w| w.enable().set_bit());
 
-//                     I2c { i2c, pins }
+// //                     I2c { i2c, pins }
 
-//                     // initial code:
-//                     // sysctl::clock_enable(IF::CLK);
-//                     // sysctl::clock_set_threshold(IF::DIV, 3);
-//                     // sysctl::reset(IF::RESET);
+// //                     // initial code:
+// //                     // sysctl::clock_enable(IF::CLK);
+// //                     // sysctl::clock_set_threshold(IF::DIV, 3);
+// //                     // sysctl::reset(IF::RESET);
 
-//                     // let v_i2c_freq = sysctl::clock_get_freq(IF::CLK);
-//                     // let v_period_clk_cnt = v_i2c_freq / i2c_clk / 2;
-//                     // let v_period_clk_cnt: u16 = v_period_clk_cnt.try_into().unwrap();
-//                     // let v_period_clk_cnt = cmp::max(v_period_clk_cnt, 1);
+// //                     // let v_i2c_freq = sysctl::clock_get_freq(IF::CLK);
+// //                     // let v_period_clk_cnt = v_i2c_freq / i2c_clk / 2;
+// //                     // let v_period_clk_cnt: u16 = v_period_clk_cnt.try_into().unwrap();
+// //                     // let v_period_clk_cnt = cmp::max(v_period_clk_cnt, 1);
 
-//                     // use i2c0::con::{ADDR_SLAVE_WIDTH_A,SPEED_A};
-//                     // let v_width = match address_width {
-//                     //     7 => ADDR_SLAVE_WIDTH_A::B7,
-//                     //     10 => ADDR_SLAVE_WIDTH_A::B10,
-//                     //     _ => panic!("unsupported address width"),
-//                     // };
-//                     // unsafe {
-//                     //     self.i2c.enable.write(|w| w.bits(0));
-//                     //     self.i2c.con.write(|w| w.master_mode().bit(true)
-//                     //                          .slave_disable().bit(true)
-//                     //                          .restart_en().bit(true)
-//                     //                          .addr_slave_width().variant(v_width)
-//                     //                          .speed().variant(SPEED_A::FAST));
-//                     //     self.i2c.ss_scl_hcnt.write(|w| w.count().bits(v_period_clk_cnt));
-//                     //     self.i2c.ss_scl_lcnt.write(|w| w.count().bits(v_period_clk_cnt));
-//                     //     self.i2c.tar.write(|w| w.address().bits(slave_address));
-//                     //     self.i2c.intr_mask.write(|w| w.bits(0));
-//                     //     self.i2c.dma_cr.write(|w| w.bits(0x3));
-//                     //     self.i2c.dma_rdlr.write(|w| w.bits(0));
-//                     //     self.i2c.dma_tdlr.write(|w| w.bits(4));
-//                     //     self.i2c.enable.write(|w| w.enable().bit(true));
-//                     // }
+// //                     // use i2c0::con::{ADDR_SLAVE_WIDTH_A,SPEED_A};
+// //                     // let v_width = match address_width {
+// //                     //     7 => ADDR_SLAVE_WIDTH_A::B7,
+// //                     //     10 => ADDR_SLAVE_WIDTH_A::B10,
+// //                     //     _ => panic!("unsupported address width"),
+// //                     // };
+// //                     // unsafe {
+// //                     //     self.i2c.enable.write(|w| w.bits(0));
+// //                     //     self.i2c.con.write(|w| w.master_mode().bit(true)
+// //                     //                          .slave_disable().bit(true)
+// //                     //                          .restart_en().bit(true)
+// //                     //                          .addr_slave_width().variant(v_width)
+// //                     //                          .speed().variant(SPEED_A::FAST));
+// //                     //     self.i2c.ss_scl_hcnt.write(|w| w.count().bits(v_period_clk_cnt));
+// //                     //     self.i2c.ss_scl_lcnt.write(|w| w.count().bits(v_period_clk_cnt));
+// //                     //     self.i2c.tar.write(|w| w.address().bits(slave_address));
+// //                     //     self.i2c.intr_mask.write(|w| w.bits(0));
+// //                     //     self.i2c.dma_cr.write(|w| w.bits(0x3));
+// //                     //     self.i2c.dma_rdlr.write(|w| w.bits(0));
+// //                     //     self.i2c.dma_tdlr.write(|w| w.bits(4));
+// //                     //     self.i2c.enable.write(|w| w.enable().bit(true));
+// //                     // }
+// //                 }
+
+//                 /// Releases the I2C peripheral and associated pins
+//                 pub fn free(self) -> ($I2CX, (SCL, SDA)) {
+//                     (self.i2c, self.pins)
 //                 }
-
-                /// Releases the I2C peripheral and associated pins
-                pub fn free(self) -> ($I2CX, (SCL, SDA)) {
-                    (self.i2c, self.pins)
-                }
-            }
+//             }
 
             impl<PINS> Write for I2c<$I2CX, PINS> {
                 type Error = Error;
@@ -511,5 +523,7 @@ macro_rules! hal {
 }
 
 hal! {
+    I2C0: (I2c0, i2c0),
     I2C1: (I2c1, i2c1),
+    I2C2: (I2c2, i2c2),
 }
