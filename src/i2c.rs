@@ -99,21 +99,25 @@ macro_rules! hal {
             /// Extension trait that constrains I2C peripheral
             pub trait I2cExt<SCL, SDA>: Sized {
                 /// Configures an I2C peripheral
-                fn configure(self, pins: (SCL, SDA), clocks: &Clocks
-                ) -> I2c<Self, (SCL, SDA)> where
+                fn configure(self, pins: (SCL, SDA), addr_width : u8, clocks: &Clocks
+                ) -> Result<I2c<I2C1, (SCL, SDA)>, Error> where
                     SCL:  SclPin<$I2CX>,
                     SDA: SdaPin<$I2CX>;
             }
 
             impl<SCL, SDA> I2cExt<SCL, SDA> for $I2CX {
-                fn configure(self, pins: (SCL, SDA), clocks: &Clocks
-                ) -> I2c<I2C1, (SCL, SDA)> where
+                fn configure(self, pins: (SCL, SDA), addr_width : u8, clocks: &Clocks
+                ) -> Result<I2c<I2C1, (SCL, SDA)>, Error> where
                     SCL:  SclPin<$I2CX>,
                     SDA: SdaPin<$I2CX>,
                 {
                     let i2c = self;
 
-                    let v_width = ADDR_SLAVE_WIDTH_A::B7;
+                    let v_width = match addr_width {
+                        7 => ADDR_SLAVE_WIDTH_A::B7,
+                        10 => ADDR_SLAVE_WIDTH_A::B10,
+                        _ => return Err(Error::Bus)
+                    }; //ADDR_SLAVE_WIDTH_A::B7;
                     let v_period_clk_cnt = 0;
 
                     i2c.enable.write(|w| w.enable().clear_bit());
@@ -150,7 +154,7 @@ macro_rules! hal {
 
                     i2c.enable.write(|w| w.enable().set_bit());
 
-                    I2c { i2c, pins }
+                    Ok(I2c { i2c, pins })
                 }
             }
 
