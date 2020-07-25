@@ -1,8 +1,8 @@
 //! High-speed GPIO peripheral (GPIOHS)
 
+use crate::bit_utils::{u32_bit_is_clear, u32_bit_is_set, u32_set_bit, u32_toggle_bit};
 use crate::pac::GPIOHS;
 use core::marker::PhantomData;
-use crate::bit_utils::{u32_set_bit, u32_toggle_bit, u32_bit_is_set, u32_bit_is_clear};
 use embedded_hal::digital::{InputPin, OutputPin};
 
 // todo: verify
@@ -25,7 +25,7 @@ pub trait GpiohsExt {
 
 impl GpiohsExt for GPIOHS {
     fn split(self) -> Parts {
-        Parts { 
+        Parts {
             gpiohs0: Gpiohs0 { _mode: PhantomData },
         }
     }
@@ -163,7 +163,7 @@ trait GpiohsAccess {
     }
 
     fn input_value(index: usize) -> bool {
-        unsafe { 
+        unsafe {
             let p = &mut Self::peripheral().input_val as *mut _ as *mut _;
             u32_bit_is_set(p, index)
         }
@@ -205,14 +205,14 @@ trait GpiohsAccess {
     }
 
     fn set_output_xor(index: usize, bit: bool) {
-        unsafe { 
+        unsafe {
             let p = &mut Self::peripheral().output_xor as *mut _ as *mut _;
             u32_set_bit(p, bit, index);
         }
     }
 
     fn toggle_pin(index: usize) {
-        unsafe { 
+        unsafe {
             let p = &mut Self::peripheral().output_val as *mut _ as *mut _;
             u32_toggle_bit(p, index);
         }
@@ -260,7 +260,7 @@ trait GpiohsAccess {
         }
     }
 
-    fn clear_high_ip(index: usize,) {
+    fn clear_high_ip(index: usize) {
         unsafe {
             let p = &mut Self::peripheral().high_ip as *mut _ as *mut _;
             u32_set_bit(p, true, index);

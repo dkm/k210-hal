@@ -15,9 +15,9 @@ pub mod clock;
 pub mod dmac;
 pub mod fft;
 pub mod fpioa;
-pub mod i2c;
 pub mod gpio;
 pub mod gpiohs;
+pub mod i2c;
 pub mod plic;
 pub mod serial;
 pub mod spi;
@@ -28,16 +28,16 @@ pub mod time;
 
 /// Prelude
 pub mod prelude {
-    pub use embedded_hal::prelude::*;
-    pub use crate::serial::SerialExt as _k210_hal_serial_SerialExt;
-    pub use crate::i2c::I2cExt as _k210_hal_i2c_I2cExt;
-    pub use crate::stdout::Write as _k210_hal_stdout_Write;
-    pub use crate::time::U32Ext as _k210_hal_time_U32Ext;
     pub use crate::fpioa::FpioaExt as _k210_hal_fpioa_FpioaExt;
-    pub use crate::sysctl::SysctlExt as _k210_hal_sysctl_SysctlExt;
     pub use crate::gpio::GpioExt as _k210_hal_gpio_GpioExt;
     pub use crate::gpiohs::GpiohsExt as _k210_hal_gpiohs_GpiohsExt;
+    pub use crate::i2c::I2cExt as _k210_hal_i2c_I2cExt;
     pub use crate::plic::PlicExt as _k210_hal_plic_PlicExt;
+    pub use crate::serial::SerialExt as _k210_hal_serial_SerialExt;
+    pub use crate::stdout::Write as _k210_hal_stdout_Write;
+    pub use crate::sysctl::SysctlExt as _k210_hal_sysctl_SysctlExt;
+    pub use crate::time::U32Ext as _k210_hal_time_U32Ext;
+    pub use embedded_hal::prelude::*;
 }
 
 mod bit_utils {

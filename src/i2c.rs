@@ -1,21 +1,21 @@
 //! Inter-Integrated Circuit (I2C) bus
 use crate::pac::i2c0::con::{ADDR_SLAVE_WIDTH_A, SPEED_A};
 
+use crate::bit_utils::{u32_bit_is_clear, u32_bit_is_set, u32_set_bit, u32_toggle_bit};
+use crate::clock::Clocks;
 use crate::pac::I2C0;
 use crate::pac::I2C1;
-use crate::clock::Clocks;
-use core::marker::PhantomData;
 use core::cmp;
-use crate::bit_utils::{u32_set_bit, u32_toggle_bit, u32_bit_is_set, u32_bit_is_clear};
+use core::marker::PhantomData;
 
-use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
 use crate::{
     fpioa::{
-        io_pins::{Io30, Io31},
         functions::{I2C1_SCLK, I2C1_SDA},
+        io_pins::{Io30, Io31},
     },
     time::Hertz,
 };
+use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
 
 // use crate::{
 //     gpio::{

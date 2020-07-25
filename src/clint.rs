@@ -43,7 +43,6 @@ pub mod mtimecmp {
     /// Write 64-bit mtimecmp register for certain hart id
     pub fn write(hart_id: usize, bits: u64) {
         // Volume II: RISC-V Privileged Architectures V1.10 p.31, figure 3.15
-        unsafe { (*pac::CLINT::ptr()).mtimecmp[hart_id].write(|w| 
-            w.bits(bits)) };
+        unsafe { (*pac::CLINT::ptr()).mtimecmp[hart_id].write(|w| w.bits(bits)) };
     }
 }
