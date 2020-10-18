@@ -1,4 +1,4 @@
-//! Inter-Integrated Circuit (I2C) bus
+//! (TODO) Inter-Integrated Circuit (I2C) bus
 use crate::pac::i2c0::con::{ADDR_SLAVE_WIDTH_A, SPEED_A};
 
 use crate::bit_utils::{u32_bit_is_clear, u32_bit_is_set, u32_set_bit, u32_toggle_bit};
